@@ -23,7 +23,8 @@
             css_main_container_class: "inplaceEdit",
             css_value_container_class: "inplaceValue",
             css_input_container_class: "inplaceInput",
-            css_input_classes: ""
+            css_input_classes: "",
+            fade: false
         };
 
     // The actual plugin constructor
@@ -157,36 +158,84 @@
             ]);
         },
 
+        onValidation: function() {
+            // Return true or false if data is valid, by default we always
+            // assume that data is valid
+            return true;
+        },
+
+        onBeforeUpdate: function() {
+            return;
+        },
+
+        onUpdate: function() {
+            // In this method you can update your server, return true if it
+            // updated, else, return false. By default we think that you always
+            // updated
+            return true;
+        },
+
+        onAfterUpdate: function() {
+            return;
+        },
+
+        onUpdateError: function() {
+            return;
+        },
+
         update: function($input, $inputContainer, $valueContainer) {
-            // called when changes will be updated (ENTER or TAB)
+            // Called when changes will be updated (ENTER or TAB).
             // this is the plugin, we receive $input, $inputContainer, $valueContainer
-            if ($inputContainer.is(":visible")) {
+            // If you wanna customize update, you can use methods onBeforeUpdate,
+            // onUpdate and onAfterUpdate.
+            // onValidation validate data, should return true or false.
+            // onUpdate should return true or false also, true means that update runs ok, false that has errors.
+            // finally, onUpdateError is called if some error in update happens.
+            var that = this;
+            var valid = false,
+                updated = false;
+            valid = this._get_func('onValidation').apply(this, [$input, $inputContainer, $valueContainer]);
+            if (valid === true) {
+                // if valid
                 this.value = $input.val();
                 $valueContainer.text(this.value);
-                $input.trigger("inputUpdate." + pluginName, this, $input, $inputContainer, $valueContainer);
-                this._get_func('hideInput').apply(this, [$valueContainer, $inputContainer,
-                    function() {
-                        $inputContainer.find("input").val('')
-                            .unbind('keydown.' + pluginName)
-                            .unbind('focusout.' + pluginName)
-                            .trigger('inputUnload.' + pluginName);
-                    }]);
+                this._get_func('onBeforeUpdate').apply(this, [$input, $inputContainer, $valueContainer]);
+                updated = this._get_func('onUpdate').apply(this, [$input, $inputContainer, $valueContainer]);
+                if (updated) {
+                    // if updated
+                    this._get_func('onAfterUpdate').apply(this, [$input, $inputContainer, $valueContainer]);
+                    if ($inputContainer.is(":visible")) {
+                        // if input is visible (cuz some update methods can hide it...) hide input and unbind plugin events
+                        $input.trigger("inputUpdate." + pluginName, [this, $input, $inputContainer, $valueContainer]);
+                        this._get_func('hideInput').apply(this, [$valueContainer, $inputContainer,
+                            function() {
+                                $input.val('')
+                                    .unbind('keydown.' + pluginName)
+                                    .unbind('focusout.' + pluginName);
+                                // if people wanna do something after inputUnload
+                                $input.trigger('inputUnload.' + pluginName, [that, $input, $inputContainer, $valueContainer]);
+                            }]);
+                        }
+                } else {
+                    this._get_func('onUpdateError').apply(this, [$input, $inputContainer, $valueContainer]);
+                }
             }
         },
 
         dismiss: function($valueContainer, $inputContainer) {
             // called when changes will be dismissed (ESC or focusout event)
             // 'this' is the plugin, we receive $valueContainer and $inputContainer
+            var that = this;
             if ($inputContainer.is(":visible")) {
                 this._get_func('hideInput').apply(this, [$valueContainer, $inputContainer,
                     function(){
-                        $inputContainer.find('input')
-                            .val('') // reset input
+                        $input = $inputContainer.find('input');
+                        $input.val('') // reset input
                             .unbind('keydown.' + pluginName)
-                            .unbind('focusout.' + pluginName)
+                            .unbind('focusout.' + pluginName);
                             // trigger inputLoad so users can unload some stuff
                             // remember to use e.target instead this.
-                            .trigger('inputUnload.' + pluginName);
+                        $input.trigger('inputUnload.' + pluginName, [that, $input, $inputContainer, $valueContainer]);
                     }]);
             }
         },
@@ -196,12 +245,20 @@
              * Receive two containers as jquery objets
              * Returns nothing
              */
-            $valueContainer.fadeOut(function() { $inputContainer.fadeIn(callback); });
+            if (!this.options.fade) {
+                $valueContainer.hide(0, function() { $inputContainer.show(0, callback); });
+            } else {
+                $valueContainer.fadeOut(function() { $inputContainer.fadeIn(callback); });
+            }
         },
 
         hideInput: function($valueContainer, $inputContainer, callback) {
             // hide input container and show value container
-            $inputContainer.fadeOut(function() { $valueContainer.fadeIn(callback); });
+            if (!this.options.fade) {
+                $inputContainer.hide(0, function() { $valueContainer.show(0, callback); });
+            } else {
+                $inputContainer.fadeOut(function() { $valueContainer.fadeIn(callback); });
+            }
         }
     };
 
