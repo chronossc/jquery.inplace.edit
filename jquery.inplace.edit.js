@@ -20,9 +20,9 @@
     // Create the defaults once
     var pluginName = "inplaceEdit",
         defaults = {
-            css_main_container_class: "inlineEdit",
-            css_value_container_class: "inlineValue",
-            css_input_container_class: "inlineInput",
+            css_main_container_class: "inplaceEdit",
+            css_value_container_class: "inplaceValue",
+            css_input_container_class: "inplaceInput",
             css_input_classes: ""
         };
 
@@ -163,6 +163,7 @@
             if ($inputContainer.is(":visible")) {
                 this.value = $input.val();
                 $valueContainer.text(this.value);
+                $input.trigger("inputUpdate." + pluginName, this, $input, $inputContainer, $valueContainer);
                 this._get_func('hideInput').apply(this, [$valueContainer, $inputContainer,
                     function() {
                         $inputContainer.find("input").val('')
